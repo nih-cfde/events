@@ -44,13 +44,17 @@ const COLUMNS = {
 // -----------------------------------------------------------------------------
 
 // sheet object
-const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+
+// get row/col counts
+const lastRow = sheet.getLastRow();
+const lastColumn = sheet.getLastColumn();
 
 // columns as object
 const columns = Object.fromEntries(
   sheet
     // get first row (headers)
-    .getRange(1, 1, 1, sheet.getLastColumn())
+    .getRange(1, 1, 1, lastColumn)
     .getValues()[0]
     .map((name, index) => ({
       // column key
@@ -65,47 +69,50 @@ const columns = Object.fromEntries(
 );
 
 // rows as arrays of objects
-const rows = sheet
-  // 2nd row to last row, 1st column to last column
-  .getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn())
-  // get values as 2D array
-  .getValues()
-  // map each row array to an object with keys from headers
-  .map((row) =>
-    Object.fromEntries(
-      Object.values(columns).map(({ key, index }) => [
-        // make object keys match column keys
-        key,
-        // fallback if cell value null/undefined
-        row[index - 1] ?? "",
-      ]),
-    ),
-  )
-  // add more helpful properties to each row object
-  .map((row, rowIndex) => ({
-    ...row,
-    // parse dates as date objects
-    start: new Date(row.start),
-    end: new Date(row.end),
-    // unique key for row, based on stable properties
-    key: [row.title, row.start, row.submitter].join("|"),
-    // row number in sheet (1-indexed)
-    index: rowIndex + 2,
-  }))
-  .map((row) => ({
-    ...row,
-    update: (key, value) => {
-      // find column by key
-      const column = Object.values(columns).find(
-        (column) => column.key === key,
-      );
-      if (!column) return;
-      // update value in sheet
-      sheet.getRange(row.index, column.index).setValue(value);
-      // update value in object (for later use in same execution)
-      row[key] = value;
-    },
-  }));
+const rows =
+  lastRow <= 1
+    ? []
+    : sheet
+        // 2nd row to last row, 1st column to last column
+        .getRange(2, 1, lastRow - 1, lastColumn)
+        // get values as 2D array
+        .getValues()
+        // map each row array to an object with keys from headers
+        .map((row) =>
+          Object.fromEntries(
+            Object.values(columns).map(({ key, index }) => [
+              // make object keys match column keys
+              key,
+              // fallback if cell value null/undefined
+              row[index - 1] ?? "",
+            ]),
+          ),
+        )
+        // add more helpful properties to each row object
+        .map((row, rowIndex) => ({
+          ...row,
+          // parse dates as date objects
+          start: new Date(row.start),
+          end: new Date(row.end),
+          // unique key for row, based on stable properties
+          key: [row.title, row.start, row.submitter].join("|"),
+          // row number in sheet (1-indexed)
+          index: rowIndex + 2,
+        }))
+        .map((row) => ({
+          ...row,
+          update: (key, value) => {
+            // find column by key
+            const column = Object.values(columns).find(
+              (column) => column.key === key,
+            );
+            if (!column) return;
+            // update value in sheet
+            sheet.getRange(row.index, column.index).setValue(value);
+            // update value in object (for later use in same execution)
+            row[key] = value;
+          },
+        }));
 
 // calendar object
 const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
@@ -219,7 +226,7 @@ ${formatDetails(row, [
 Please review row # ${row.index} here:
 ${SHEET_URL}
 
-Set "Approval Status" to "Approved" or "Denied," and optionally add "Approval Comments.
+Set "Approval Status" to "Approved" or "Denied," and optionally add "Approval Comments".
 `;
 
     sendEmail(APPROVER_EMAILS, FROM_EMAIL, subject, body);
@@ -412,7 +419,7 @@ function eventsRemoved() {
 
   // list of all current calendar entry ids in sheet
   const ids = sheet
-    .getRange(2, columns.id.index, sheet.getLastRow() - 1, 1)
+    .getRange(2, columns.id.index, lastRow - 1, 1)
     .getValues()
     .flat()
     .filter(Boolean);
@@ -452,8 +459,11 @@ function onChange(event) {
   }
 
   if (type === "EDIT") {
-    // get active range
-    const range = sheet.getActiveRange();
+    // range of cells just edited
+    const range = event.source.getActiveRange();
+
+    // make sure range is valid
+    if (!range || range.getSheet().getName() !== sheet.getName()) return;
 
     // get row of edited cell
     const rowIndex = range.getRow();
