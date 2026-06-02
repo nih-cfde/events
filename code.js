@@ -2,16 +2,16 @@
 // constants
 // -----------------------------------------------------------------------------
 
-const APPROVER_EMAILS = ["vince.rubinetti@gmail.com"];
-const FROM_EMAIL = "vince.rubinetti@gmail.com";
+const APPROVER_EMAILS = ["cfde.icc@gmail.com"];
+const FROM_EMAIL = "cfde.icc@gmail.com";
 const HELP_CONTACT = "Swathi Thaker at snthaker@uab.edu.";
 const FORM_URL =
   "https://docs.google.com/forms/d/1g1rq941ju15Zi2YMv70DDL33giW_xZ7XBrxSuMz8hi0";
 const SHEET_URL =
-  "https://docs.google.com/spreadsheets/d/1uYt3DBp-PFNTGpBE8r1fssrFnECZ8G13yK1pstT-sgg/edit?usp=sharing";
+  "https://docs.google.com/spreadsheets/d/1uYt3DBp-PFNTGpBE8r1fssrFnECZ8G13yK1pstT-sgg";
 const CALENDAR_URL = "https://cfdeconnect.org/calendar";
 const CALENDAR_ID =
-  "c670108b40b3d31f74822cb74014d4b1a592c58e85be478eafeb0e5321b8a4b3@group.calendar.google.com";
+  "3e81b0f8035b4e83b9394300144fcd290c034f9a5c9d1d00a3bb2a71d143785d@group.calendar.google.com";
 
 // map of column "keys" (var names used in this script) to "names" (actual header cell values in sheet)
 // (so this script can be fixed more easily if form/sheet names change)
