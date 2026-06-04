@@ -50,6 +50,8 @@ const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
 const lastRow = sheet.getLastRow();
 const lastColumn = sheet.getLastColumn();
 
+console.log({ lastRow, lastColumn });
+
 // columns as object
 const columns = Object.fromEntries(
   sheet
@@ -67,6 +69,8 @@ const columns = Object.fromEntries(
     // convert to object
     .map((column) => [column.key, column]),
 );
+
+console.log({ columns });
 
 // rows as arrays of objects
 const rows =
@@ -114,6 +118,8 @@ const rows =
           },
         }));
 
+console.log({ rowCount: rows.length, lastRow: rows.at(-1) });
+
 // calendar object
 const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
 
@@ -126,16 +132,17 @@ const script = PropertiesService.getScriptProperties();
 
 // send email
 function sendEmail(to, from, subject, body) {
-  MailApp.sendEmail({
-    to: [to]
-      .flat()
-      .filter(Boolean)
-      .map((address) => address.trim())
-      .join(","),
-    from: from.trim(),
-    subject: subject.trim(),
-    body: body.trim(),
-  });
+  console.log("sendEmail");
+  to = [to]
+    .flat()
+    .filter(Boolean)
+    .map((address) => address.trim())
+    .join(",");
+  from = from.trim();
+  subject = subject.trim();
+  body = body.trim();
+  console.log({ to, from, subject, body });
+  MailApp.sendEmail({ to, from, subject, body });
 }
 
 // format certain details in row as multi-line string
@@ -191,17 +198,34 @@ function getEntry(id) {
 
 // initialize empty statuses
 function initStatuses() {
-  for (const row of rows) if (!row.status) row.update("status", "Pending");
+  console.log("initStatuses");
+
+  for (const row of rows) {
+    console.log(`row ${row.index}`);
+    if (!row.status) {
+      row.update("status", "Pending");
+      console.log("set to pending");
+    }
+  }
 }
 
 // send approval request emails for pending events
 function sendApprovals() {
+  console.log("sendApprovals");
+
   for (const row of rows) {
+    console.log(`row ${row.index}`);
     // only pending events
-    if (row.status !== "Pending") continue;
+    if (row.status !== "Pending") {
+      console.log("not pending, ignoring");
+      continue;
+    }
 
     // don't resend
-    if (approval.get(row) === "sent") continue;
+    if (approval.get(row) === "sent") {
+      console.log("already sent, ignoring");
+      continue;
+    }
 
     // email subject
     const subject = `New Event Submission: ${row.title || "(no title)"}`;
@@ -233,11 +257,14 @@ Set "Approval Status" to "Approved" or "Denied," and optionally add "Approval Co
 
     // mark as sent
     approval.set(row, "sent");
+    console.log("marked as sent");
   }
 }
 
 // send reminder emails for upcoming approved events
 function sendReminders() {
+  console.log("sendReminders");
+
   // current time
   const now = new Date();
   // a bit in the future
@@ -245,18 +272,34 @@ function sendReminders() {
   // a bit more in the future
   const windowEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
 
-  for (const row of rows) {
-    // only events that start within window
-    if (row.start < windowStart || row.start > windowEnd) continue;
+  console.log({ now, windowStart, windowEnd });
 
-    // don't resend
-    if (reminder.get(row) === "sent") continue;
+  for (const row of rows) {
+    console.log(`row ${row.index}`);
+
+    // only events that start within window
+    if (row.start < windowStart || row.start > windowEnd) {
+      console.log("outside of window, ignoring");
+      continue;
+    }
 
     // only approved events
-    if (row.status !== "Approved") continue;
+    if (row.status !== "Approved") {
+      console.log("not approved, ignoring");
+      continue;
+    }
+
+    // don't resend
+    if (reminder.get(row) === "sent") {
+      console.log("already sent, ignoring");
+      continue;
+    }
 
     // only events with particular fields
-    if (!row.submitter || !row.title || !row.start) continue;
+    if (!row.submitter || !row.title || !row.start) {
+      console.log("missing fields, ignoring");
+      continue;
+    }
 
     // email subject
     const subject = `Reminder: Upcoming Event "${row.title}"`;
@@ -280,11 +323,15 @@ ${formatDetails(row, ["title", "start", "end"])}
 
     // mark as sent
     reminder.set(row, "sent");
+    console.log("marked as sent");
   }
 }
 
 // validate event
 function validateEvent(row, status) {
+  console.log("validateEvent");
+  console.log({ row: row.index, status });
+
   // do some validation that can't easily be achieved in form
   const errors = [];
 
@@ -295,12 +342,15 @@ function validateEvent(row, status) {
   if (row.format.match(/in[- ]?person/i) && !row.location)
     errors.push(`Missing ${columns.location}`);
 
-  if (!errors.length) return;
+  if (!errors.length) {
+    console.log("no errors, ignoring");
+    return;
+  }
 
-  // report errors
   // reset status so it can be fixed and resubmitted
-  row.update("status", "Pending");
   approval.clear(row);
+  row.update("status", "Pending");
+  console.log("set to pending");
 
   // email subject
   const subject = `Approval blocked (row ${row.index})`;
@@ -314,29 +364,46 @@ ${errors.map((error) => `- ${error}`).join("\n")}
 `;
 
   sendEmail(APPROVER_EMAILS, FROM_EMAIL, subject, body);
+
   return true;
 }
 
 // handle setting status to pending
 function eventPending(row, status) {
-  if (status !== "Pending") return;
+  console.log("eventPending");
+  console.log({ row: row.index, status });
+
+  if (status !== "Pending") {
+    console.log("not pending, ignoring");
+    return;
+  }
   approval.clear(row);
   sendApprovals();
+
   return true;
 }
 
 // handle denied event
 function eventDenied(row, status) {
-  if (status !== "Denied") return;
+  console.log("eventDenied");
+
+  if (status !== "Denied") {
+    console.log("not denied, ignoring");
+    return;
+  }
 
   if (row.id) {
+    console.log("deleting calendar entry");
     // delete calender entry
     getEntry(row.id)?.deleteEvent();
     // clear id from sheet
     row.update("id", "");
   }
 
-  if (!row.submitter) return;
+  if (!row.submitter) {
+    console.log("no submitter, ignoring");
+    return;
+  }
 
   // email subject
   const subject = `Your event "${row.title}" was denied`;
@@ -351,12 +418,19 @@ If you have any questions, please contact ${HELP_CONTACT}.
 `;
 
   sendEmail(row.submitter, FROM_EMAIL, subject, body);
+
   return true;
 }
 
 // handle approved event
 function eventApproved(row, status) {
-  if (status !== "Approved") return;
+  console.log("eventApproved");
+  console.log({ row: row.index, status });
+
+  if (status !== "Approved") {
+    console.log("not approved, ignoring");
+    return;
+  }
 
   // make calendar entry description to (PUBLIC, do not include private info)
   const description = formatDetails(row, [
@@ -377,19 +451,22 @@ function eventApproved(row, status) {
   let entry = getEntry(row.id);
 
   // if exists
-  if (entry)
+  if (entry) {
+    console.log("updating existing calendar entry");
     // update entry
     entry
       .setTitle(row.title)
       .setTime(row.start, row.end)
       .setDescription(description)
       .setLocation(location);
-  else
+  } else {
+    console.log("creating new calendar entry");
     // create new entry
     entry = calendar.createEvent(row.title, row.start, row.end, {
       description,
       location,
     });
+  }
 
   // update sheet with calendar entry id
   row.update("id", entry.getId());
@@ -397,7 +474,10 @@ function eventApproved(row, status) {
   // clear reminder dedupe so updated approved events can get a fresh reminder
   reminder.clear(row);
 
-  if (!row.submitter) return;
+  if (!row.submitter) {
+    console.log("no submitter, ignoring");
+    return;
+  }
 
   // email subject
   const subject = `Your event "${row.title}" was approved`;
@@ -410,31 +490,40 @@ If you have any questions, please contact ${HELP_CONTACT}.
 `;
 
   sendEmail(row.submitter, FROM_EMAIL, subject, body);
+
   return true;
 }
 
 // handle removed events
 function eventsRemoved() {
+  console.log("eventsRemoved");
+
   const idsKey = "cfde_event_ids";
 
   // list of all current calendar entry ids in sheet
-  const ids = sheet
+  const _new = sheet
     .getRange(2, columns.id.index, lastRow - 1, 1)
     .getValues()
     .flat()
     .filter(Boolean);
+  console.log({ new: _new });
 
   // previous persisted list of calendar entry ids
-  const previousIds = JSON.parse(script.getProperty(idsKey) || "[]");
+  const old = JSON.parse(script.getProperty(idsKey) || "[]");
+  console.log({ old });
 
   // which ids were removed from sheet
-  const removed = previousIds.filter((id) => !ids.includes(id));
+  const removed = old.filter((id) => !_new.includes(id));
+  console.log({ removed });
 
   // delete removed entries from calendar
-  for (const id of removed) getEntry(id)?.deleteEvent();
+  for (const id of removed) {
+    console.log(`removing calendar entry ${id}`);
+    getEntry(id)?.deleteEvent();
+  }
 
   // persist ids for next time
-  script.setProperty(idsKey, JSON.stringify(ids));
+  script.setProperty(idsKey, JSON.stringify(_new));
 }
 
 // -----------------------------------------------------------------------------
@@ -443,6 +532,8 @@ function eventsRemoved() {
 
 // run when form submitted
 function onFormSubmit() {
+  console.log("onFormSubmit");
+
   // initialize empty statuses
   initStatuses();
   // send approval request emails
@@ -451,14 +542,20 @@ function onFormSubmit() {
 
 // run when spreadsheet changed
 function onChange(event) {
+  console.log("onChange");
+
   const type = event.changeType;
+  console.log({ type });
 
   if (type === "REMOVE_ROW") {
+    console.log("removed row");
     eventsRemoved();
     return;
   }
 
   if (type === "EDIT") {
+    console.log("edited cell");
+
     // range of cells just edited
     const range = event.source.getActiveRange();
 
@@ -469,19 +566,23 @@ function onChange(event) {
     const rowIndex = range.getRow();
     // get column of edited cell
     const columnIndex = range.getColumn();
+    // get new cell value
+    const value = range.getValue();
 
-    // get new status value
-    const status = range.getValue();
+    console.log({ row: rowIndex, column: columnIndex, value });
 
     // get full row object
     const row = rows.find((row) => row.index === rowIndex);
 
+    console.log({ row });
+
     // if status cell edited
     if (rowIndex > 1 && columnIndex === columns.status.index && row) {
-      if (validateEvent(row, status)) return;
-      if (eventPending(row, status)) return;
-      if (eventDenied(row, status)) return;
-      if (eventApproved(row, status)) return;
+      console.log("status edited");
+      if (validateEvent(row, value)) return;
+      if (eventPending(row, value)) return;
+      if (eventDenied(row, value)) return;
+      if (eventApproved(row, value)) return;
     }
 
     return;
@@ -490,6 +591,8 @@ function onChange(event) {
 
 // run daily
 function onDaily() {
+  console.log("onDaily");
+
   // (re)send approval request emails until admin has handled it
   sendApprovals();
   // send reminders dependent on date window
