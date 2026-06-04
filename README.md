@@ -1,7 +1,5 @@
 # Setup
 
-Run `initStatuses()` manually once to authorize permissions.
-
 Show `appsscript.json` in editor via settings and set it to:
 
 ```json
@@ -27,3 +25,5 @@ Add triggers:
 | `onFormSubmit` | From spreadsheet | On form submit |
 | `onChange`     | From spreadsheet | On change      |
 | `onDaily`      | Time-driven      | Day timer      |
+
+Run `initStatuses()` manually once to authorize permissions.
