@@ -1,22 +1,8 @@
 # Setup
 
-Show `appsscript.json` in editor via settings and set it to:
+Show `appsscript.json` in editor and copy local `appsscript.json` content.
 
-```json
-{
-  "timeZone": "America/New_York",
-  "dependencies": {},
-  "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8",
-  "oauthScopes": [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/script.send_mail"
-  ]
-}
-```
-
-Copy `code.js` to editor.
+Copy local `code.js` content to editor.
 
 Add triggers:
 

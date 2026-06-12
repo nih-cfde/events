@@ -7,6 +7,7 @@ const FROM_EMAIL = "cfde.icc@gmail.com";
 const HELP_CONTACT = "Swathi Thaker at snthaker@uab.edu.";
 const FORM_URL =
   "https://docs.google.com/forms/d/1g1rq941ju15Zi2YMv70DDL33giW_xZ7XBrxSuMz8hi0";
+const FORM_ID = "1g1rq941ju15Zi2YMv70DDL33giW_xZ7XBrxSuMz8hi0";
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1uYt3DBp-PFNTGpBE8r1fssrFnECZ8G13yK1pstT-sgg";
 const CALENDAR_URL = "https://cfdeconnect.org/calendar";
@@ -96,6 +97,7 @@ const rows =
         .map((row, rowIndex) => ({
           ...row,
           // parse dates as date objects
+          timestamp: new Date(row.timestamp),
           start: new Date(row.start),
           end: new Date(row.end),
           // unique key for row, based on stable properties
@@ -125,6 +127,12 @@ const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
 
 // script properties
 const script = PropertiesService.getScriptProperties();
+
+// form object
+const form = FormApp.openById(FORM_ID);
+
+// form responses
+let responses;
 
 // -----------------------------------------------------------------------------
 // util
@@ -181,15 +189,45 @@ function makeRowStore(prefix) {
 }
 
 // track approval email status for each row
-const approval = makeRowStore("approval_email");
-// track reminder email status for each row
-const reminder = makeRowStore("reminder_email");
+const approvalEmail = makeRowStore("approval_email");
+// track upcoming event reminder email status for each row
+const upcomingEmail = makeRowStore("upcoming_email");
+// track recent event reminder email status for each row
+const recentEmail = makeRowStore("recent_email");
 
 // look up calendar entry
 function getEntry(id) {
   try {
     return calendar.getEventById(id);
   } catch {}
+}
+
+// get link to edit form response
+function getEditLink(row) {
+  console.log("getEditLink");
+  console.log({ row: row.index });
+
+  // get responses
+  if (!responses) responses = form.getResponses();
+
+  // timestamp of row
+  const rowTime = row.timestamp.getTime();
+  for (const response of responses) {
+    // timestamp of form response
+    const responseTime = response.getTimestamp().getTime();
+    // match by timestamp (loosely, ms sometimes omitted)
+    if (Math.abs(responseTime - rowTime) < 2000) {
+      console.log(`matched row ${rowTime} to response ${responseTime}`);
+      return response.getEditResponseUrl();
+    }
+  }
+
+  return "";
+}
+
+// today, +/- n days
+function now(days) {
+  return new Date(new Date().getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 // -----------------------------------------------------------------------------
@@ -202,6 +240,7 @@ function initStatuses() {
 
   for (const row of rows) {
     console.log(`row ${row.index}`);
+
     if (!row.status) {
       row.update("status", "Pending");
       console.log("set to pending");
@@ -215,6 +254,7 @@ function sendApprovals() {
 
   for (const row of rows) {
     console.log(`row ${row.index}`);
+
     // only pending events
     if (row.status !== "Pending") {
       console.log("not pending, ignoring");
@@ -222,7 +262,7 @@ function sendApprovals() {
     }
 
     // don't resend
-    if (approval.get(row) === "sent") {
+    if (approvalEmail.get(row) === "sent") {
       console.log("already sent, ignoring");
       continue;
     }
@@ -256,23 +296,21 @@ Set "Approval Status" to "Approved" or "Denied," and optionally add "Approval Co
     sendEmail(APPROVER_EMAILS, FROM_EMAIL, subject, body);
 
     // mark as sent
-    approval.set(row, "sent");
+    approvalEmail.set(row, "sent");
     console.log("marked as sent");
   }
 }
 
-// send reminder emails for upcoming approved events
-function sendReminders() {
-  console.log("sendReminders");
+// send reminder emails for upcoming events
+function sendUpcoming() {
+  console.log("sendUpcoming");
 
-  // current time
-  const now = new Date();
-  // a bit in the future
-  const windowStart = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-  // a bit more in the future
-  const windowEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+  // some days in future
+  const windowStart = now(14);
+  // some more days in future
+  const windowEnd = now(15);
 
-  console.log({ now, windowStart, windowEnd });
+  console.log({ windowStart, windowEnd });
 
   for (const row of rows) {
     console.log(`row ${row.index}`);
@@ -290,19 +328,19 @@ function sendReminders() {
     }
 
     // don't resend
-    if (reminder.get(row) === "sent") {
+    if (upcomingEmail.get(row) === "sent") {
       console.log("already sent, ignoring");
       continue;
     }
 
-    // only events with particular fields
-    if (!row.submitter || !row.title || !row.start) {
+    // only events with necessary fields
+    if (!row.submitter) {
       console.log("missing fields, ignoring");
       continue;
     }
 
     // email subject
-    const subject = `Reminder: Upcoming Event "${row.title}"`;
+    const subject = `Prepare for your upcoming event "${row.title}"`;
 
     // email body
     const body = `
@@ -310,7 +348,7 @@ Hello event organizer,
 
 As part of the CFDE Evaluation Core's event reporting efforts, we are asking you to gather some info during your upcoming event. Please refer back to the "POST-EVENT" part of the Google Form where you originally registered your event:
 
-${FORM_URL}
+${getEditLink(row) || FORM_URL}
 
 Please prepare to survey your attendees and record notes so that you can answer these questions in detail. Once your event has concluded, we will be reminding you to fill out that section and update your response.
 
@@ -322,7 +360,71 @@ ${formatDetails(row, ["title", "start", "end"])}
     sendEmail(row.submitter, FROM_EMAIL, subject, body);
 
     // mark as sent
-    reminder.set(row, "sent");
+    upcomingEmail.set(row, "sent");
+    console.log("marked as sent");
+  }
+}
+
+// send reminder emails for recent events
+function sendRecent() {
+  console.log("sendRecent");
+
+  // some days in past
+  const windowEnd = now(-3);
+  // some more days in past
+  const windowStart = now(-2);
+
+  console.log({ windowStart, windowEnd });
+
+  for (const row of rows) {
+    console.log(`row ${row.index}`);
+
+    // only events that end within window
+    if (row.end < windowStart || row.end > windowEnd) {
+      console.log("outside of window, ignoring");
+      continue;
+    }
+
+    // only approved events
+    if (row.status !== "Approved") {
+      console.log("not approved, ignoring");
+      continue;
+    }
+
+    // don't resend
+    if (recentEmail.get(row) === "sent") {
+      console.log("already sent, ignoring");
+      continue;
+    }
+
+    // only events with necessary fields
+    if (!row.submitter) {
+      console.log("missing fields, ignoring");
+      continue;
+    }
+
+    // email subject
+    const subject = `Answer questions about your recent event "${row.title}"`;
+
+    // email body
+    const body = `
+Hello event organizer,
+
+As part of the CFDE Evaluation Core's event reporting efforts, we are asking you to answer some questions about your recent event. Please refer back to the "POST-EVENT" part of the Google Form where you originally registered your event:
+
+${getEditLink(row) || FORM_URL}
+
+Please fill out that section and update your original response.
+
+Thank you for helping us demonstrate the impact and value of CFDE events!
+
+${formatDetails(row, ["title", "start", "end"])}
+`;
+
+    sendEmail(row.submitter, FROM_EMAIL, subject, body);
+
+    // mark as sent
+    recentEmail.set(row, "sent");
     console.log("marked as sent");
   }
 }
@@ -337,10 +439,10 @@ function validateEvent(row, status) {
 
   // validate link
   if (row.format.match(/virtual|online/i) && !row.link)
-    errors.push(`Missing ${columns.link}`);
+    errors.push(`Missing ${columns.link.name}`);
   // validate location
   if (row.format.match(/in[- ]?person/i) && !row.location)
-    errors.push(`Missing ${columns.location}`);
+    errors.push(`Missing ${columns.location.name}`);
 
   if (!errors.length) {
     console.log("no errors, ignoring");
@@ -348,7 +450,7 @@ function validateEvent(row, status) {
   }
 
   // reset status so it can be fixed and resubmitted
-  approval.clear(row);
+  approvalEmail.clear(row);
   row.update("status", "Pending");
   console.log("set to pending");
 
@@ -377,7 +479,7 @@ function eventPending(row, status) {
     console.log("not pending, ignoring");
     return;
   }
-  approval.clear(row);
+  approvalEmail.clear(row);
   sendApprovals();
 
   return true;
@@ -471,9 +573,6 @@ function eventApproved(row, status) {
   // update sheet with calendar entry id
   row.update("id", entry.getId());
 
-  // clear reminder dedupe so updated approved events can get a fresh reminder
-  reminder.clear(row);
-
   if (!row.submitter) {
     console.log("no submitter, ignoring");
     return;
@@ -501,11 +600,14 @@ function eventsRemoved() {
   const idsKey = "cfde_event_ids";
 
   // list of all current calendar entry ids in sheet
-  const _new = sheet
-    .getRange(2, columns.id.index, lastRow - 1, 1)
-    .getValues()
-    .flat()
-    .filter(Boolean);
+  const _new =
+    lastRow <= 1
+      ? []
+      : sheet
+          .getRange(2, columns.id.index, lastRow - 1, 1)
+          .getValues()
+          .flat()
+          .filter(Boolean);
   console.log({ new: _new });
 
   // previous persisted list of calendar entry ids
@@ -596,5 +698,6 @@ function onDaily() {
   // (re)send approval request emails until admin has handled it
   sendApprovals();
   // send reminders dependent on date window
-  sendReminders();
+  sendUpcoming();
+  sendRecent();
 }
