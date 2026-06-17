@@ -61,7 +61,7 @@ const columns = Object.fromEntries(
     .getValues()[0]
     .map((name, index) => ({
       // column key
-      key: Object.keys(COLUMNS).find((key) => COLUMNS[key] === name),
+      key: Object.keys(COLUMNS).find((key) => COLUMNS[key] === name) || name,
       // actual column name in sheet
       name,
       // column number in sheet (1-indexed)
@@ -104,23 +104,24 @@ const rows =
           key: [row.title, row.start, row.submitter].join("|"),
           // row number in sheet (1-indexed)
           index: rowIndex + 2,
-        }))
-        .map((row) => ({
-          ...row,
-          update: (key, value) => {
-            // find column by key
-            const column = Object.values(columns).find(
-              (column) => column.key === key,
-            );
-            if (!column) return;
-            // update value in sheet
-            sheet.getRange(row.index, column.index).setValue(value);
-            // update value in object (for later use in same execution)
-            row[key] = value;
-          },
         }));
 
-console.log({ rowCount: rows.length, lastRow: rows.at(-1) });
+// add update method for each row for convenient setting of values
+for (const row of rows)
+  row.update = (key, value) => {
+    // find column by key
+    const column = Object.values(columns).find((column) => column.key === key);
+    if (!column) {
+      console.debug("no matching column", { row: row.index, key, value });
+      return;
+    }
+    // update value in sheet
+    sheet.getRange(row.index, column.index).setValue(value);
+    // update value in object (for later use in same execution)
+    row[key] = value;
+  };
+
+console.log({ rows: rows.length });
 
 // calendar object
 const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
