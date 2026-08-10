@@ -4,7 +4,7 @@
 
 const APPROVER_EMAILS = ["cfde.icc@gmail.com"];
 const FROM_EMAIL = "cfde.icc@gmail.com";
-const HELP_CONTACT = "Swathi Thaker at snthaker@uab.edu.";
+const SIGNATURE = "- CFDE Integration and Coordination Center";
 const FORM_URL =
   "https://docs.google.com/forms/d/1g1rq941ju15Zi2YMv70DDL33giW_xZ7XBrxSuMz8hi0";
 const FORM_ID = "1g1rq941ju15Zi2YMv70DDL33giW_xZ7XBrxSuMz8hi0";
@@ -38,6 +38,7 @@ const COLUMNS = {
   status: "Status",
   comments: "Comments",
   id: "ID",
+  selected: "Selected",
 };
 
 // -----------------------------------------------------------------------------
@@ -140,7 +141,7 @@ let responses;
 // -----------------------------------------------------------------------------
 
 // send email
-function sendEmail(to, from, subject, body) {
+function sendEmail(to, from, subject, body, dryRun = false) {
   console.log("sendEmail");
   to = [to]
     .flat()
@@ -149,9 +150,15 @@ function sendEmail(to, from, subject, body) {
     .join(",");
   from = from.trim();
   subject = subject.trim();
-  body = body.trim();
+  body = `
+${body.trim()}
+
+
+${SIGNATURE}
+`.trim();
   console.log({ to, from, subject, body });
-  MailApp.sendEmail({ to, from, subject, body });
+  if (dryRun) console.log("dry run, not sending");
+  else MailApp.sendEmail({ to, from, subject, body });
 }
 
 // format certain details in row as multi-line string
@@ -350,12 +357,11 @@ Hello event organizer,
 As part of the CFDE Evaluation Core's event reporting efforts, we are asking you to gather some info during your upcoming event. Please refer back to the "POST-EVENT" part of the Google Form where you originally registered your event:
 
 ${getEditLink(row) || FORM_URL}
-
-Please prepare to survey your attendees and record notes so that you can answer these questions in detail. Once your event has concluded, we will be reminding you to fill out that section and update your response.
-
-Thank you for helping us demonstrate the impact and value of CFDE events!
-
 ${formatDetails(row, ["title", "start", "end"])}
+
+Please prepare to survey your attendees and record notes so that you can answer these questions in detail. Once your event has concluded, we will remind you to fill out that section and update your response.
+
+Thank you for helping us demonstrate the impact and value of CFDE events! If you have any questions, please reply to this email.
 `;
 
     sendEmail(row.submitter, FROM_EMAIL, subject, body);
@@ -414,12 +420,11 @@ Hello event organizer,
 As part of the CFDE Evaluation Core's event reporting efforts, we are asking you to answer some questions about your recent event. Please refer back to the "POST-EVENT" part of the Google Form where you originally registered your event:
 
 ${getEditLink(row) || FORM_URL}
+${formatDetails(row, ["title", "start", "end"])}
 
 Please fill out that section and update your original response.
 
-Thank you for helping us demonstrate the impact and value of CFDE events!
-
-${formatDetails(row, ["title", "start", "end"])}
+Thank you for helping us demonstrate the impact and value of CFDE events! If you have any questions, please reply to this email.
 `;
 
     sendEmail(row.submitter, FROM_EMAIL, subject, body);
@@ -427,6 +432,46 @@ ${formatDetails(row, ["title", "start", "end"])}
     // mark as sent
     recentEmail.set(row, "sent");
     console.log("marked as sent");
+  }
+}
+
+// sent arbitrary email to arbitrary rows (for manual running)
+function sendArbitrary() {
+  console.log("sendArbitrary");
+
+  for (const row of rows) {
+    console.log(`row ${row.index}`);
+
+    // only desired events
+    if (!row.selected) {
+      console.log("not selected, ignoring");
+      continue;
+    }
+
+    // only events with necessary fields
+    if (!row.submitter) {
+      console.log("missing fields, ignoring");
+      continue;
+    }
+
+    // email subject
+    const subject = `Regarding your CFDE event "${row.title}"`;
+
+    // email body
+    const body = `
+Hello event organizer,
+
+We recently updated the administrative process around CFDE events, and it looks like you created an event before that update was in place. Most notably, we added "POST-EVENT" questions about how your event went. Please refer back to the Google Form where you originally registered your event:
+
+${getEditLink(row) || FORM_URL}
+${formatDetails(row, ["title", "start", "end"])}
+
+Please fill out any missing information and update your response.
+
+Thank you for helping us demonstrate the impact and value of CFDE events! If you have any questions, please reply to this email.
+`;
+
+    sendEmail(row.submitter, FROM_EMAIL, subject, body, true);
   }
 }
 
@@ -517,7 +562,7 @@ Your CFDE event submission was not approved. Comments:
 
 ${row.comments}
 
-If you have any questions, please contact ${HELP_CONTACT}.
+If you have any questions, please reply to this email.
 `;
 
   sendEmail(row.submitter, FROM_EMAIL, subject, body);
@@ -586,7 +631,7 @@ function eventApproved(row, status) {
   const body = `
 Your event is now live on our shared calendar: ${CALENDAR_URL}
 
-If you have any questions, please contact ${HELP_CONTACT}.
+If you have any questions, please reply to this email.
 `;
 
   sendEmail(row.submitter, FROM_EMAIL, subject, body);
