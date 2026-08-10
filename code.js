@@ -435,7 +435,7 @@ Thank you for helping us demonstrate the impact and value of CFDE events! If you
   }
 }
 
-// sent arbitrary email to arbitrary rows (for manual running)
+// sent arbitrary email to arbitrary rows (run manually with "Debug" button in Apps Script UI)
 function sendArbitrary() {
   console.log("sendArbitrary");
 
