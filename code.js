@@ -309,7 +309,7 @@ function sendUpcoming() {
   // some days in future
   const windowStart = now(14);
   // some more days in future
-  const windowEnd = now(15);
+  const windowEnd = now(14 + 1);
 
   console.log({ windowStart, windowEnd });
 
@@ -371,9 +371,9 @@ function sendRecent() {
   console.log("sendRecent");
 
   // some days in past
-  const windowEnd = now(-3);
+  const windowEnd = now(-7);
   // some more days in past
-  const windowStart = now(-2);
+  const windowStart = now(-7 + 1);
 
   console.log({ windowStart, windowEnd });
 
