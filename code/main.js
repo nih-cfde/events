@@ -119,7 +119,9 @@ for (const row of rows)
     // find column by key
     const column = Object.values(columns).find((column) => column.key === key);
     if (!column)
-      throw Error(stringify("no matching column", { row: row.index, key, value }));
+      throw Error(
+        stringify("no matching column", { row: row.index, key, value }),
+      );
     // update value in sheet
     sheet.getRange(row.index, column.index).setValue(value);
     // update value in object (for later use in same execution)
