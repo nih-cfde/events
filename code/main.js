@@ -57,7 +57,7 @@ const lastColumn = sheet.getLastColumn();
 // sheet name
 const sheetName = sheet.getName();
 
-console.debug({ lastRow, lastColumn, sheetName });
+console.log({ lastRow, lastColumn, sheetName });
 
 // columns as object
 const columns = Object.fromEntries(
@@ -77,7 +77,7 @@ const columns = Object.fromEntries(
     .map((column) => [column.key, column]),
 );
 
-console.debug({ columns });
+console.log({ columns });
 
 // rows as arrays of objects
 const rows =
@@ -115,7 +115,7 @@ const rows =
 // add update method for each row for convenient setting of values
 for (const row of rows)
   row.update = (key, value) => {
-    console.debug("updating row", { row: row.index, key, value });
+    console.log("updating row", { row: row.index, key, value });
     // find column by key
     const column = Object.values(columns).find((column) => column.key === key);
     if (!column)
@@ -128,7 +128,7 @@ for (const row of rows)
     row[key] = value;
   };
 
-console.debug({ rows: rows.length });
+console.log({ rows: rows.length });
 
 // calendar object
 const calendar = CalendarApp.getCalendarById(CALENDAR_ID);

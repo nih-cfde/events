@@ -65,7 +65,7 @@ function updateEntry(row) {
 
   // if exists
   if (entry) {
-    console.debug("updating existing calendar entry");
+    console.log("updating existing calendar entry");
     // update entry
     entry
       .setTitle(row.title)
@@ -73,7 +73,7 @@ function updateEntry(row) {
       .setDescription(description)
       .setLocation(location);
   } else {
-    console.debug("creating new calendar entry");
+    console.log("creating new calendar entry");
     // create new entry
     entry = calendar.createEvent(row.title, row.start, row.end, {
       description,
@@ -89,7 +89,7 @@ function updateEntry(row) {
 function denyEvent(row) {
   removeEntry(row);
 
-  if (!row.submitter) return console.debug("no submitter, ignoring");
+  if (!row.submitter) return console.log("no submitter, ignoring");
 
   // send email to user
   const subject = deniedSubject(row);
@@ -101,7 +101,7 @@ function denyEvent(row) {
 function approveEvent(row) {
   updateEntry(row);
 
-  if (!row.submitter) return console.debug("no submitter, ignoring");
+  if (!row.submitter) return console.log("no submitter, ignoring");
 
   // send email to user
   const subject = approvedSubject(row);
@@ -115,19 +115,19 @@ function handleRemoved() {
 
   // list of all current calendar entry ids in sheet
   const current = rows.map((row) => row.id).filter(Boolean);
-  console.debug({ current });
+  console.log({ current });
 
   // previous persisted list of calendar entry ids
   const old = JSON.parse(script.getProperty(idsKey) || "[]");
-  console.debug({ old });
+  console.log({ old });
 
   // which ids were removed from sheet
   const removed = old.filter((id) => !current.includes(id));
-  console.debug({ removed });
+  console.log({ removed });
 
   // delete removed entries from calendar
   for (const id of removed) {
-    console.debug("removing calendar entry", { id });
+    console.log("removing calendar entry", { id });
     getEntry(id)?.deleteEvent();
   }
 

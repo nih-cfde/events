@@ -2,7 +2,7 @@
 function onFormSubmit({ response }) {
   // get row corresponding to form response
   const row = getResponseRow(response);
-  console.debug({ row: row?.index });
+  console.log({ row: row?.index });
   if (!row) throw Error("no matching row");
 
   // init form response edit link
@@ -33,12 +33,12 @@ function onChange({ changeType: type, source }) {
     const columnIndex = range.getColumn();
     // get new cell value
     const value = range.getValue();
-    console.debug({ rowIndex, columnIndex, value });
+    console.log({ rowIndex, columnIndex, value });
 
     // get full row object
     const row = rows.find((row) => row.index === rowIndex);
     if (!row) throw Error("no matching row");
-    console.debug({ row: row.index });
+    console.log({ row: row.index });
 
     // admin changed status column
     if (columnIndex === columns.status.index) {

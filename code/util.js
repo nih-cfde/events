@@ -8,8 +8,8 @@ function sendEmail(to, from, subject, body, dryRun = false) {
   from = from.trim();
   subject = subject.trim();
   body = body.trim();
-  console.debug({ to, from, subject, body });
-  if (dryRun) console.debug("dry run, not sending");
+  console.log({ to, from, subject, body });
+  if (dryRun) console.log("dry run, not sending");
   else MailApp.sendEmail({ to, from, subject, body });
 }
 
@@ -48,7 +48,7 @@ function getEntry(id) {
 
 // get row corresponding to form response
 function getResponseRow(response) {
-  console.debug({ response: response.getId() });
+  console.log({ response: response.getId() });
 
   // timestamp of form response
   const responseTime = response.getTimestamp().getTime();
@@ -57,7 +57,7 @@ function getResponseRow(response) {
     const rowTime = row.timestamp.getTime();
     // match by timestamp (loosely, ms omitted)
     if (Math.abs(rowTime - responseTime) < 2000) {
-      console.debug("matched response to row", {
+      console.log("matched response to row", {
         row: row.index,
         responseTime,
         rowTime,
@@ -78,7 +78,7 @@ function rowsInWindow(start, end) {
   start = now(start);
   end = now(end);
   const inWindow = rows.filter((row) => row.start >= start && row.start <= end);
-  console.debug({ start, end, inWindow: inWindow.length });
+  console.log({ start, end, inWindow: inWindow.length });
   return inWindow;
 }
 
@@ -94,7 +94,7 @@ for (const name of Object.keys(globalThis)) {
   const original = globalThis[name];
   if (typeof original === "function")
     globalThis[name] = function (...args) {
-      console.debug(name, args);
+      console.log(name, args);
       return original.apply(this, args);
     };
 }
