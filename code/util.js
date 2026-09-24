@@ -94,7 +94,10 @@ for (const name of Object.keys(globalThis)) {
   const original = globalThis[name];
   if (typeof original === "function")
     globalThis[name] = function (...args) {
-      console.log(name, args);
-      return original.apply(this, args);
+      console.log(`${name}()`);
+      console.log("arguments", args);
+      const result = original.apply(this, args);
+      console.log("result", result);
+      return result;
     };
 }
