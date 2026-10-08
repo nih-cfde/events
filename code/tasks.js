@@ -38,9 +38,9 @@ function validateEvent(row) {
 // remove calendar entry
 function removeEntry(row) {
   // delete calendar entry
-  getEntry(row.id)?.deleteEvent();
+  getEntry(row.calendarId)?.deleteEvent();
   // clear id from sheet
-  row.update("id", "");
+  row.update("calendarId", "");
 }
 
 // add/update calendar entry
@@ -61,7 +61,7 @@ function updateEntry(row) {
     row.format.match(/virtual|online/i) && row.link ? row.link : row.location;
 
   // get existing calendar entry
-  let entry = getEntry(row.id);
+  let entry = getEntry(row.calendarId);
 
   // if exists
   if (entry) {
@@ -82,7 +82,7 @@ function updateEntry(row) {
   }
 
   // update sheet with calendar entry id
-  row.update("id", entry.getId());
+  row.update("calendarId", entry.getId());
 }
 
 // deny event
@@ -114,7 +114,7 @@ function handleRemoved() {
   const idsKey = "cfde_event_ids";
 
   // list of all current calendar entry ids in sheet
-  const current = rows.map((row) => row.id).filter(Boolean);
+  const current = rows.map((row) => row.calendarId).filter(Boolean);
   console.log({ current });
 
   // previous persisted list of calendar entry ids

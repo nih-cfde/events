@@ -37,7 +37,7 @@ const COLUMNS = {
   selected: "Selected",
   comments: "Comments",
   edit: "Edit",
-  id: "ID",
+  calendarId: "Calendar ID",
   timestamp: "Timestamp",
   submitter: "Email Address",
   source: "Source",
